@@ -67,7 +67,7 @@ module.exports = {
   async chameleon (req, res) {
     try {
       res.send({
-        'Message': 'Chameleon service is working'
+        'Message': 'Chameleon service is working in the new repo now'
       })
     } catch (err) {
       res.status(400).send({
