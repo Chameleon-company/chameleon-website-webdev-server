@@ -1,4 +1,4 @@
-# Chameleon company website server
+# Chameleon company website
 MongoDB, Express, Vue.js, Node.js Boilerplate
 
 
