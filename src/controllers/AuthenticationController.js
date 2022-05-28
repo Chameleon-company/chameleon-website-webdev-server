@@ -207,4 +207,41 @@ module.exports = {
     })
 
   },
-}
+
+  async profile(req, res) {
+    try {
+      console.log('quickstart start')
+      console.log(req.body.file1)
+      //生成multiparty对象，并配置上传目标路径
+      var form = new multiparty.Form({ uploadDir: './public/images' });
+      form.parse(req, function (err, fields, files) {
+        console.log(fields, files, ' fields2')
+        if (err) {
+        } else {
+          res.json({ imgSrc: files.image[0].path })
+        }
+      });
+
+            // Imports the Google Cloud client library
+            const vision = require('@google-cloud/vision');
+
+            // Creates a client
+            const client = new vision.ImageAnnotatorClient();
+            // Performs label detection on the image file
+            // const [result] = await client.labelDetection('./resources/wakeupcat.jpg');
+            // const labels = result.labelAnnotations;
+            // labels.forEach(label => console.log(label.description));
+      
+            res.send({
+              'Message': ''
+            })
+          } catch (err) {
+            res.status(400).send({
+              error: err
+            })
+          }
+      
+        }
+
+    }
+  
