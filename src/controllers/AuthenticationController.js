@@ -1,6 +1,10 @@
+const Promise = require('bluebird')
+const bcrypt = Promise.promisifyAll(require('bcrypt-nodejs'))
 const User = require('../models/user')
 const jwt = require('jsonwebtoken')
 const config = require('../config/config')
+const nodemailer = require("nodemailer");
+
 
 function jwtSignUser(user) {
   const ONE_WEEK = 60 * 60 * 24 * 7
@@ -9,10 +13,40 @@ function jwtSignUser(user) {
   })
 }
 
+
+function sendEmail(email, link) {
+  // create reusable transporter object using the default SMTP transport
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "chameleonsemail@gmail.com", // generated ethereal user
+      pass: "362$F566x", // generated ethereal password
+    },
+  });
+
+  // send mail with defined transport object
+  let mailOptions = {
+    from: '"Chameleon" <chameleonsemail@gmail.com>', // sender address
+    to: email,
+    subject: 'Chameleon: Reset your password',
+    html: `Click <a href="${link}">here</a> to reset your password!`
+  };
+
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      return console.log(error);
+    }
+    console.log("Message sent: %s", info.messageId);
+    console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+  });
+
+
+}
+
 module.exports = {
   async register(req, res) {
     try {
-      const { email, password } = req.body
+      const { email, password, confirmPassword } = req.body
       User.findOne({ email: email }, function (err, user) {
         if (!err) {
           if (user) {
@@ -21,7 +55,12 @@ module.exports = {
             })
           }
         }
-      }) 
+      })
+      if (password != confirmPassword) {
+        res.status(400).send({
+          error: 'Passwords do not match!'
+        })
+      }
       let user = await User.create(req.body)
       res.send(user.toJSON())
     } catch (err) {
@@ -64,10 +103,10 @@ module.exports = {
       })
     }
   },
-  async chameleon (req, res) {
+  async chameleon(req, res) {
     try {
       res.send({
-        'Message': 'Chameleon service is working in the new repo now'
+        'Message': 'Chameleon service is working'
       })
     } catch (err) {
       res.status(400).send({
@@ -75,43 +114,97 @@ module.exports = {
       })
     }
   },
-  async profile(req, res) {
+
+  async forgotPassword(req, res) {
+    const { email } = req.body;
+
+    User.findOne({ email }, (err, user) => {
+      if (err || !user) {
+        return res.status(400).json({ error: "User with this email does not exsits." });
+      }
+
+      const secret = "NEW_SECRET" + user.password;
+
+      const payload = {
+        email: user.email
+      };
+
+      const token = jwt.sign(payload, secret, { expiresIn: '15m' });
+      const link = `http://localhost:8080/?#/web/reset-password/${user.email}/${token}`;
+
+      sendEmail(email, link);
+
+    })
+  },
+
+  //loads immediately after user opens reset password link
+  async resetPassword(req, res) {
+    const { email, token } = req.query;
+
+    User.findOne({ email }, (err, user) => {
+      if (err || !user) {
+        return res.status(400).json({ error: "User with this token does not exists" });
+      }
+
+      const secret = "NEW_SECRET" + user.password;
+
+      try {
+        const payload = jwt.verify(token, secret)
+        res.send({ payload, code: "Successful match!" })
+      }
+      catch (error) {
+        res.send(error.message);
+      }
+    })
+  },
+
+  async newPassword(req, res) {
+    const { email, password, confirmPassword } = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(400).send({
+        error: 'Passwords do not match'
+      })
+    }
     try {
-      console.log('quickstart start')
-      console.log(req.body.file1)
-//生成multiparty对象，并配置上传目标路径
-var form = new multiparty.Form({ uploadDir: './public/images' });
-form.parse(req, function(err, fields, files) {
-    console.log(fields, files,' fields2')
-    if (err) {
-    } else {
-        res.json({ imgSrc: files.image[0].path })
+      if (password.search(/[!\@\#\$\%\^\&\*\(\)\-\_\+\=\,\<\>\?]/) == 1) {
+        return res.status(410).send({
+          error: 'Password must alphanumeric.'
+        })
+      }
+      if (password.length < 8 || password.length > 32) {
+        return res.status(410).send({
+          error: 'Password must be 8-32 characters in length.'
+        })
+      }
+
     }
-});
-
-
-      // Imports the Google Cloud client library
-      const vision = require('@google-cloud/vision');
-
-      // Creates a client
-      const client = new vision.ImageAnnotatorClient();
-      // Performs label detection on the image file
-       const [result] = await client.labelDetection('./resources/wakeupcat.jpg');
-       const labels = result.labelAnnotations;
-       labels.forEach(label => console.log(label.description));
-
-      res.send({
-        'Message': ''
-      })
-    } catch (err) {
+    catch (error) {
       res.status(400).send({
-        error: err
+        error: 'Something went wrong.'
       })
     }
 
-  }
+    bcrypt.genSalt(10, function (err, salt) {
+      if (err) {
+        return next(err)
+      }
+      bcrypt.hash(password, salt, null, function (err, hash) {
+        if (err) {
+          return next(err)
+        }
+        User.findOneAndUpdate({ email: email }, { password: hash }, (err) => {
+          if (err) {
+            console.log(err)
+          }
+        });
+      })
+    })
 
 
+    res.send({
+      message: 'Successful stored password.'
+    })
 
-
+  },
 }
