@@ -74,6 +74,8 @@ module.exports = {
     try {
       const { email, password } = req.body
       User.findOne({ email: email }, function (err, user) {
+        console.log("USER = ")
+        console.log(user.firstName)
         if (!err) {
           if (!user) {
             return res.status(200).send({
@@ -88,7 +90,8 @@ module.exports = {
           }
           const userJson = user.toJSON()
           res.send({
-            user: userJson,
+            user: email,
+            firstName: user.firstName,
             token: jwtSignUser(userJson)
           })
         } else {
