@@ -133,7 +133,7 @@ module.exports = {
       };
 
       const token = jwt.sign(payload, secret, { expiresIn: '15m' });
-      const link = `http://localhost:8080/?#/web/reset-password/${user.email}/${token}`;
+      const link = `https://chameleon-client.mybluemix.net/?#/web/reset-password/${user.email}/${token}`;
 
       sendEmail(email, link);
 
